@@ -17,3 +17,21 @@ exports.serverURL = serverURL;
 var moment = require('moment');
 moment.tz.setDefault("Asia/Seoul");
 exports.moment = moment;
+
+// CONFIGURE REDIS
+const REDIS = require('redis');
+var redis = REDIS.createClient(6379, 'localhost');
+redis.on("error", function(error) {
+    console.error(error);
+});
+exports.redis = redis;
+
+const redisAttrName = "attractions";
+const redisLostsName = "losts";
+const redisNoticeName = "notice";
+const redisWaitMinuteName = "waitMinute";
+
+exports.redisWaitMinuteName = redisWaitMinuteName;
+exports.redisAttrName = redisAttrName;
+exports.redisLostsName = redisLostsName;
+exports.redisNoticeName = redisNoticeName;

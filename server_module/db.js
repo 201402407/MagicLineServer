@@ -4,9 +4,9 @@ const mariadb = require('mariadb');
 const mainPool = mariadb.createPool({
     host: 'localhost',
     port: 3306,
-    user: '-',
-    password : '-',
-    database: '-',
+    user: 'root',
+    password : '1234',
+    database: 'magic_line',
     connectionLimit: 15
 });
 

@@ -21,14 +21,16 @@ exports.existUser = `
     FROM 
         user 
     WHERE 
-        nfc_uid = ?`; 
+        nfc_uid = ?
+    AND
+        WAIT_FLAG = 0`; 
           
 // user DB 안에 같은 nfc_uid를 가진 데이터의 reg_date 변경
 exports.updateRegDateInUser = `
     UPDATE 
         user 
     SET
-        reg_date = ? 
+        reg_date = ?
     WHERE 
         nfc_uid = ?`;
 
@@ -52,7 +54,7 @@ exports.insertUidInTicket = `
     UPDATE 
         ticket 
     SET 
-        nfc_uid = ? 
+        nfc_uid = ?, reg_date = ?
     WHERE 
         ticket_code = ?`;  
 
@@ -83,10 +85,12 @@ exports.getTodayAllUsersWait = `
         b.attr_code, COUNT(a.attr_code) as counts
     FROM
         attraction AS b
-    LEFT OUTER JOIN 
+    LEFT OUTER JOIN
         user AS a
     ON 
         a.attr_code = b.attr_code
+    WHERE
+        a.WAIT_FLAG = 0
     GROUP BY 
         b.attr_code`;
 
@@ -98,10 +102,12 @@ exports.getWaitAttrCode = `
     FROM 
         user
     WHERE
-        nfc_uid = ?`;
+        nfc_uid = ?
+    AND
+        WAIT_FLAG = 0`;
 
 
-/* 특정 사용자의 대기 신청한 놀이기구 고유코드 전송 */
+/* 특정 사용자의 대기 신청한 놀이기구 정보 및 대기시간 전송 */
 exports.getWaitStatusInfo = `
     SELECT 
         a.attr_code, b.name, b.location, b.img_url
@@ -112,18 +118,48 @@ exports.getWaitStatusInfo = `
     ON
         a.attr_code = b.attr_code
     WHERE
-        a.nfc_uid = ?`;
+        a.nfc_uid = ?
+    AND
+        WAIT_FLAG = 0`;
+
+// exports.getWaitStatusInfo = `
+//     SELECT 
+//         attr_code
+//     FROM 
+//         user
+//     WHERE
+//         nfc_uid = ?`;
 
 
 /* 특정 사용자의 예약 신청한 놀이기구 고유코드 Array 전송 */
-exports.getReservation = `
+exports.getReservationAttrCode = `
     SELECT 
         attr_code, reservation_order
     FROM 
         reservation
     WHERE
-        nfc_uid = ?`;
+        nfc_uid = ?
+    AND
+        RESERVATION_FLAG = 0
+    ORDER BY
+        reservation_order
+    ASC`;
 
+        
+
+exports.getReservation = `
+    SELECT 
+        a.attr_code, a.reservation_order, b.name, b.location, b.coordinate, b.img_url
+    FROM 
+        reservation AS a
+    INNER JOIN
+        attraction AS b
+    ON
+        a.attr_code = b.attr_code
+    WHERE
+        nfc_uid = ?
+    AND
+        RESERVATION_FLAG = 0`;
 
 /* 예약 데이터 추가 */
 // 가장 마지막 예약 순서 가져오기
@@ -134,6 +170,8 @@ exports.getLastOrder = `
         reservation 
     WHERE 
         nfc_uid = ?
+    AND
+        RESERVATION_FLAG = 0
     ORDER BY
         reservation_order
     DESC
@@ -144,7 +182,7 @@ exports.addReservation = `
     INSERT INTO 
             reservation 
         SET 
-            nfc_uid = ?, reservation_order = ?, attr_code = ?`;
+            nfc_uid = ?, reservation_order = ?, attr_code = ?, REG_DATE = ?`;
 
 
 /* 예약 데이터 삭제 */
@@ -156,20 +194,37 @@ exports.removeReservation = `
         nfc_uid = ?
     AND
         reservation_order = ?
+    AND
+        RESERVATION_FLAG = 0
     LIMIT 1`;
 
 // 예약 데이터 정렬(지운 순서부터의 레코드 순서값에서 1을 제거하기)
-exports.sortReservation = `
+exports.sortReservationAfterRemove = `
     UPDATE
         reservation
     SET
         reservation_order = reservation_order - 1
     WHERE
-	    nfc_uid = ?
+        nfc_uid = ?
+    AND
+        RESERVATION_FLAG = 0
     AND
 	    reservation_order > ?;
 `;
 
+// 예약 데이터 정렬(지운 순서부터의 레코드 순서값에서 1을 제거하기)
+exports.sortReservationAfterInsert = `
+    UPDATE
+        reservation
+    SET
+        reservation_order = reservation_order + 1
+    WHERE
+        nfc_uid = ?
+    AND
+        RESERVATION_FLAG = 0
+    AND
+	    reservation_order >= ?;
+`;
 
 /* 놀이기구 대기 신청 */
 // 이미 대기 신청 되어있는지 확인
@@ -188,7 +243,9 @@ exports.insertWaitAttr = `
     SET 
         attr_code = ?, req_time = ?
     WHERE
-        nfc_uid = ?`;
+        nfc_uid = ?
+    AND
+        WAIT_FLAG = 0`;
 
 
 /* 대기 현황 보기 */
@@ -206,9 +263,13 @@ exports.getCountUserWait = `
                     user 
                 WHERE 
                     nfc_uid = ?
+                AND
+                    WAIT_FLAG = 0
             )
     AND
-	    attr_code = ?`;
+        attr_code = ?
+    AND
+        WAIT_FLAG = 0`;
 
         
 /* 대기 삭제 */
@@ -219,7 +280,9 @@ exports.removeWaitAttr = `
     SET 
         attr_code = null, req_time = null, boarding = 0
     WHERE
-        nfc_uid = ?`;
+        nfc_uid = ?
+    AND
+        WAIT_FLAG = 0`;
 
 
 /* 특정 시간 이내의 대기 신청자들 중 boarding(탑승여부) true로 변경 */
@@ -235,6 +298,8 @@ exports.setPossibleBoarding = `
                 user 
             WHERE 
                 attr_code = ? 
+            AND
+                WAIT_FLAG = 0 
             ORDER BY 
                 req_time 
             ASC 
@@ -260,7 +325,9 @@ exports.getImpossibleBoarding = `
             FROM 
                 user 
             WHERE 
-                attr_code = ? 
+                attr_code = ?
+            AND
+                WAIT_FLAG = 0 
             ORDER BY 
                 req_time 
             ASC 
@@ -281,6 +348,8 @@ exports.changeReservation = `
     WHERE
         nfc_uid = ?
     AND
+        RESERVATION_FLAG = 0
+    AND
         reservation_order = ?`;
 
 
@@ -292,7 +361,9 @@ exports.getBoarding = `
     FROM
         user
     WHERE
-        nfc_uid = ?`
+        nfc_uid = ?
+    AND
+        WAIT_FLAG = 0`
 
 // 첫 번째 예약 정보 가져오기
 exports.getFirstReservation = `
@@ -302,6 +373,8 @@ exports.getFirstReservation = `
         reservation 
     WHERE 
         nfc_uid = ?
+    AND
+        RESERVATION_FLAG = 0
     ORDER BY
         reservation_order
     ASC
@@ -320,7 +393,9 @@ exports.getCoordinateOfReservation = `
     ON
         a.attr_code = b.attr_code
     WHERE
-        b.nfc_uid = ?`;
+        b.nfc_uid = ?
+    AND
+        RESERVATION_FLAG = 0`;
 
 
 /* 티켓 등록했는지 판단 */
@@ -333,10 +408,14 @@ exports.getTodayRegisteredTicket = `
         user AS b
     ON 
         a.nfc_uid = b.nfc_uid
+    AND
+        a.reg_date = b.reg_date
     WHERE
         a.nfc_uid = ?
     AND
-        b.reg_date > ?`;
+        b.reg_date > ?
+    AND
+        b.WAIT_FLAG = 0`;
 
 
 /* 공지 및 분실물 갱신 및 출력 */
@@ -381,14 +460,41 @@ exports.getTodayNotice = `
         reg_date
     DESC`;
 
-//     SELECT
-//         attr_code, count(attr_code) as counts
-//     FROM
-//         user
-//     WHERE
-//         reg_date >= ? 
-//     AND 
-//         attr_code is NOT NULL 
-//     AND 
-//         req_time is NOT NULL 
-//     GROUP BY attr_code`;
+
+/* 폐장 시간마다 대기, 예약 신청 데이터 FLAG 변경하기 */
+// 대기 신청 FLAG 변경
+exports.setWaitFlag = `
+    UPDATE
+        user
+    SET
+        WAIT_FLAG = 1
+    WHERE
+        REG_DATE < ?
+    AND
+        WAIT_FLAG = 0`;
+
+// 예약 신청 FLAG 변경
+exports.setReservationFlag = `
+    UPDATE
+        reservation
+    SET
+        RESERVATION_FLAG = 1
+    WHERE
+        REG_DATE < ?
+    AND
+        RESERVATION_FLAG = 0`;
+
+
+/* 예약 1순위 추천 시스템 */
+// 해당 놀이기구의 1순위 예약 개수 가져오기
+exports.getReservationCountOfFirstOrder = `
+    SELECT
+        COUNT(RESERVATION_CODE) as count
+    FROM
+        reservation
+    WHERE
+        ATTR_CODE = ?
+    AND
+        RESERVATION_FLAG = 0
+    AND
+        RESERVATION_ORDER = 1`;

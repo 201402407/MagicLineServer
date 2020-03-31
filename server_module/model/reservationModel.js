@@ -18,11 +18,26 @@ exports.getReservation = (nfc_uid) => {
     });
 }
 
-exports.addReservation = (nfc_uid, order, attr_code) => {
+exports.getReservationAttrCode = (nfc_uid) => {
     const DB = new db.main();
     return DB.conn()
     .then(_ => {
-        return DB.query(query.addReservation, [nfc_uid, order, attr_code]);
+        return DB.query(query.getReservationAttrCode, [nfc_uid]);
+    })
+    .then(result => {
+        DB.close();
+        return result;
+    })
+    .catch(err => {
+        console.log(err);
+    });
+}
+
+exports.addReservation = (nfc_uid, order, attr_code, reg_date) => {
+    const DB = new db.main();
+    return DB.conn()
+    .then(_ => {
+        return DB.query(query.addReservation, [nfc_uid, order, attr_code, reg_date]);
     })
     .then(result => {
         DB.close();
@@ -78,11 +93,26 @@ exports.removeReservation = (nfc_uid, reservation_order) => {
     });
 }
 
-exports.sortReservation = (nfc_uid, reservation_order) => {
+exports.sortReservationAfterRemove = (nfc_uid, reservation_order) => {
     const DB = new db.main();
     return DB.conn()
     .then(_ => {
-        return DB.query(query.sortReservation, [nfc_uid, reservation_order]);
+        return DB.query(query.sortReservationAfterRemove, [nfc_uid, reservation_order]);
+    })
+    .then(result => {
+        DB.close();
+        return result;
+    })
+    .catch(err => {
+        console.log(err);
+    });
+}
+
+exports.sortReservationAfterInsert = (nfc_uid, reservation_order) => {
+    const DB = new db.main();
+    return DB.conn()
+    .then(_ => {
+        return DB.query(query.sortReservationAfterInsert, [nfc_uid, reservation_order]);
     })
     .then(result => {
         DB.close();
@@ -122,3 +152,33 @@ exports.getCoordinateOfReservation = (nfc_uid) => {
         console.log(err);
     });
 }
+
+exports.setReservationFlag = (reg_date) => {
+    const DB = new db.main();
+    return DB.conn()
+    .then(_ => {
+        return DB.query(query.setReservationFlag, [reg_date]);
+    })
+    .then(result => {
+        DB.close();
+        return result;
+    })
+    .catch(err => {
+        console.log(err);
+    });
+} 
+
+exports.getReservationCountOfFirstOrder = (attr_code) => {
+    const DB = new db.main();
+    return DB.conn()
+    .then(_ => {
+        return DB.query(query.getReservationCountOfFirstOrder, [attr_code]);
+    })
+    .then(result => {
+        DB.close();
+        return result;
+    })
+    .catch(err => {
+        console.log(err);
+    });
+} 

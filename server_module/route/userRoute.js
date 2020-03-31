@@ -29,12 +29,11 @@ router.post('/insertWaitAttr', (req, res) => {
     userModel.existWaitAttr(nfc_uid)
     .then(result => {   
         if(result.length === 0) {   // 존재하지 않으면 진행
-            return res.json({result : '사용자 등록 확인 실패. 티켓 등록 필요'});
             console.log("사용자 등록 확인 실패. 티켓 등록 필요");
+            return res.json({result : '사용자 등록 확인 실패. 티켓 등록 필요'});
         }
         else {
-            console.log(util.startTodayDate);
-            if(result[0].req_time > util.startTodayDate) {  // 시간 초과된 신청(현재 날의 이전에 신청한 대기)
+            if(result[0].attr_code && result[0].WAIT_FLAG == 0) {  // 시간 초과된 신청(현재 날의 이전에 신청한 대기)
                 console.log("현재 대기 신청중인 놀이기구 존재");
                 return res.json({result : '현재 대기 신청중인 놀이기구 존재'});
             }
@@ -67,7 +66,8 @@ router.post('/removeWaitAttr', (req, res) => {
     userModel.removeWaitAttr(nfc_uid)
     .then(result => {
         if(result.affectedRows > 0) {   // 대기 삭제 정상 완료
-            res.json({result : 'success'});
+            util.moveFirstReservationIntoWait(nfc_uid);
+            return res.status(200).json({result : 'success'});
         }
         else {
             console.log("신청한 대기 삭제 실패");
@@ -94,9 +94,9 @@ router.post('/nfcTagging', (req, res) => {
         if(!code[0].attr_code) {  // 대기 신청 존재하지 않으면
             return res.send({result : '대기 신청 존재하지 않음.'});
         }
-        if(code[0].attr_code != attr_code) {
-            return res.send({result : '해당 놀이기구와 대기 신청한 놀이기구가 다름.'});
-        }
+        // if(code[0].attr_code != attr_code) {
+        //     return res.send({result : '해당 놀이기구와 대기 신청한 놀이기구가 다름.'});
+        // }
 
         // 대기 탑승 여부 체크
         userModel.getBoarding(nfc_uid)

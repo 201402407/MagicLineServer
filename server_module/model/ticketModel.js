@@ -30,14 +30,15 @@ exports.existTicket = (ticket_code) => {
     })
 }
 
-exports.insertUidInTicket = (nfc_uid, ticket_code) => {
+exports.insertUidInTicket = (nfc_uid, reg_date, ticket_code) => {
     const DB = new db.main();
     return DB.conn()
     .then(_ => {
-        return DB.query(query.insertUidInTicket, [nfc_uid, ticket_code]);
+        return DB.query(query.insertUidInTicket, [nfc_uid, reg_date, ticket_code]);
     })
-    .then(_ => {
-        return DB.close();
+    .then(result => {
+        DB.close();
+        return result;
     })
     .catch(err => {
         console.log(err);

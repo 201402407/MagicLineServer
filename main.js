@@ -7,6 +7,7 @@ const userModel = require('./server_module/model/userModel');
 const bodyParser = require('body-parser');
 const schedule = require('node-schedule');
 var express = require('express');
+var async = require('async');
 
 // GET OBJECT
 const app = express();
@@ -24,67 +25,85 @@ app.use(bodyParser.json());
 
 // RUN SERVER
 var port = process.env.PORT || 8000;
-var server = app.listen(port, static.serverURL, function(){
-    console.log("Express server has started on port " + port)
-   });
 
-// CONFIGURE ROUTER
-app.use('/ticket', require('./server_module/route/ticketRoute'));
-app.use('/user', require('./server_module/route/userRoute'));
-app.use('/attr', require('./server_module/route/attractionRoute'));
-app.use('/reservation', require('./server_module/route/reservationRoute'));
-app.use('/notice', require('./server_module/route/noticeRoute'));
-app.use('/losts', require('./server_module/route/lostsRoute'));
+async.waterfall([
+    function(cb) {
+        console.log("[START]  EXPRESS SERVER LISTEN ..");
+        var server = app.listen(port, static.serverURL, function(){
+            console.log("[SUCCESS]  Express server has started on port " + port)
+            console.log("_________________________________________________________________");
+            cb();
+           });     
+    },
+    function(cb) {
+        console.log("[START]  CONFIGURE ROUTER ..");
+        // CONFIGURE ROUTER
+        app.use('/ticket', require('./server_module/route/ticketRoute'));
+        app.use('/user', require('./server_module/route/userRoute'));
+        app.use('/attr', require('./server_module/route/attractionRoute'));
+        app.use('/reservation', require('./server_module/route/reservationRoute'));
+        app.use('/notice', require('./server_module/route/noticeRoute'));
+        app.use('/losts', require('./server_module/route/lostsRoute'));
+
+        console.log("[SUCCESS]  CONFIGURE ROUTER SUCCESS!");
+        console.log("_________________________________________________________________");
+        cb();
+    },
+    function(cb) {
+        console.log("[START]  ATTRACTIONS IN REDIS SETTING ..");
+        util.setAttractions();
+        console.log("[SUCCESS]  SETTING ATTRACTIONS IN REDIS");
+        console.log("_________________________________________________________________");
+    }
+]);
+
+// var server = app.listen(port, static.serverURL, function(){
+//     console.log("Express server has started on port " + port)
+    
+//    });
+
+// // CONFIGURE ROUTER
+// app.use('/ticket', require('./server_module/route/ticketRoute'));
+// app.use('/user', require('./server_module/route/userRoute'));
+// app.use('/attr', require('./server_module/route/attractionRoute'));
+// app.use('/reservation', require('./server_module/route/reservationRoute'));
+// app.use('/notice', require('./server_module/route/noticeRoute'));
+// app.use('/losts', require('./server_module/route/lostsRoute'));
 
 // DB에 저장된 모든 놀이기구 데이터 가져와 서버에 저장
+console.log("[" + static.moment().format('MM월 DD일, HH시 mm분 ss초') + "]  모든 놀이기구 데이터 REDIS에 저장 시작 . ");
+// console.log("******** DB에 저장된 모든 놀이기구 데이터 가져와 서버에 저장 : " + static.moment().format('MM월 DD일, HH시 mm분 ss초') + "\n");
 util.setAttractions();
 
-
-/* 서버 내부 데이터 갱신 ScheduleJob */
-// 놀이기구 대기 시간 일정 주기로 갱신(놀이기구 전체 남은 대기시간 별도 메모리에 저장하기 위한 함수 호출)
-// 10초 마다
-const refreshWaitTimeAttraction = schedule.scheduleJob('*/10 * * * * *', () => {
+// /* 서버 내부 데이터 갱신 ScheduleJob */
+// // 놀이기구 대기 시간 일정 주기로 갱신(놀이기구 전체 남은 대기시간 별도 메모리에 저장하기 위한 함수 호출)
+const refreshWaitTimeAttraction = schedule.scheduleJob('*/30 * * * * *', () => {
+    console.log("[" + static.moment().format('MM월 DD일, HH시 mm분 ss초') + "]  놀이기구 대기 시간 갱신 시작 . ");
     util.refreshWaitTimeAttractions();
-    console.log("******** 놀이기구 대기 시간 갱신 : " + static.moment().format('MM월 DD일, HH시 mm분 ss초') + "\n");
-    if(util.allAttraction != null) {
-        util.allAttraction.forEach(obj => {
-                console.log(obj.name + "의 대기시간은 " + obj.wait_minute + " 입니다.");
-                console.log(obj.name + " 놀이기구가 "+ obj.check_remain_minute + " 분 남았을 때의 대기 인원 수 : " + obj.count_remain_time);
-        })
-    }
     console.log("_________________________________________________________________");
 });
 
-// 실제 빠른 주기로 탑승 여부를 갱신하며 FCM 보내는 함수(30초 마다)
-const changeBoarding = schedule.scheduleJob('*/30 * * * * *', () => {
-    console.log("******** 놀이기구 별 탑승 여부 갱신 : " + static.moment().format('MM월 DD일, HH시 mm분 ss초') + "\n");
-    util.changeBoarding();
+// // // 실제 빠른 주기로 탑승 여부를 갱신하며 FCM 보내는 함수(30초 마다)
+const changeBoarding = schedule.scheduleJob('*/15 * * * * *', () => {
+    console.log("[" + static.moment().format('MM월 DD일, HH시 mm분 ss초') + "]  놀이기구 탑승 여부 변경 및 FCM 시작 . ");
+    var redis = static.redis;
+    redis.lrange(static.redisAttrName, 0, -1, (err, arr) => {
+        util.changeBoarding(arr);
+    });
     console.log("_________________________________________________________________");
 })
 
-// 공지 및 이벤트 갱신 함수(10분 마다)
-const refreshLosts = schedule.scheduleJob('*/30 * * * * *', () => {
-    console.log("******** 공지 및 이벤트 갱신 : " + static.moment().format('MM월 DD일, HH시 mm분') + "\n");
+// // 공지 및 이벤트 갱신 함수(1분 마다)
+const refreshNotices = schedule.scheduleJob('0 */2 * * * *', () => {
+    console.log("[" + static.moment().format('MM월 DD일, HH시 mm분 ss초') + "]  공지 및 이벤트 갱신 시작 . ");
     util.refreshNotices();
-    if(util.notices != null) {
-        util.notices.forEach(obj => {
-            console.log(obj.title);
-            console.log(obj.context);
-        })
-    }
     console.log("_________________________________________________________________");
 })
 
-// 분실물 갱신 함수(5분 마다)
-const refreshNotices = schedule.scheduleJob('*/30 * * * * *', () => {
-    console.log("******** 분실물 갱신 : " + static.moment().format('MM월 DD일, HH시 mm분') + "\n");
+// // 분실물 갱신 함수(1분 마다)
+const refreshLosts = schedule.scheduleJob('0 */1 * * * *', () => {
+    console.log("[" + static.moment().format('MM월 DD일, HH시 mm분 ss초') + "]  분실물 갱신 시작 . ");
     util.refreshLosts();
-    if(util.losts != null) {
-        util.losts.forEach(obj => {
-            console.log("분류 - " + obj.classification + " , 이름 - " + obj.name);
-            console.log("분실 장소 - " + obj.location);
-        })
-    }
     console.log("_________________________________________________________________");
 })
 

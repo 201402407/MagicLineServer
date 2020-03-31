@@ -2,6 +2,7 @@ const router = require('express').Router();
 const lostsModel = require('../model/lostsModel');
 const static = require('../static');
 const util = require('../util');
+const JSON = require('JSON');
 
 // 분실물 데이터 추가
 router.post('/addLosts', (req, res) => {
@@ -28,14 +29,17 @@ router.post('/addLosts', (req, res) => {
 
 // 분실물 데이터 전송
 router.get('/getAllLosts', (req, res) => {
-
-    if(util.losts.length === 0) {  // meta data만 있는 경우 (값이 없으면 0인가?)
-        console.log("분실물 is empty");
-        res.sendStatus(400);
-    }
-    else {
-        res.json(util.losts);
-    }
+    var redis = static.redis;
+    var arr = new Array();
+    redis.hvals(static.redisLostsName, (err, obj) => {
+        if(err) {
+            return res.sendStatus(400);
+        }
+        obj.forEach(item => {
+            arr.push(JSON.parse(item));
+        })
+        return res.send(arr);  
+    })
 })
 
 module.exports = router; // router 객체 안에 모든 함수가 넣어져있고, 이를 모듈화하면서 다른 곳에서 사용이 가능하다.

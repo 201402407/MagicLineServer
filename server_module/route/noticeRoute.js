@@ -28,13 +28,25 @@ router.post('/addNotice', (req, res) => {
 // 공지사항 데이터 전송
 router.get('/getAllNotice', (req, res) => {
 
-    if(util.notices.length === 0) {  // meta data만 있는 경우 (값이 없으면 0인가?)
-        console.log("공지사항 is empty");
-        res.sendStatus(400);
-    }
-    else {
-        res.json(util.notices);
-    }
+    var redis = static.redis;
+    var arr = new Array();
+    redis.hvals(static.redisNoticeName, (err, obj) => {
+        if(err) {
+            return res.sendStatus(400);
+        }
+        obj.forEach(item => {
+            arr.push(JSON.parse(item));
+        })
+        return res.send(arr);  
+    })
+
+    // if(util.notices.length === 0) {  // meta data만 있는 경우 (값이 없으면 0인가?)
+    //     console.log("공지사항 is empty");
+    //     res.sendStatus(400);
+    // }
+    // else {
+    //     res.json(util.notices);
+    // }
 })
 
 module.exports = router; // router 객체 안에 모든 함수가 넣어져있고, 이를 모듈화하면서 다른 곳에서 사용이 가능하다.

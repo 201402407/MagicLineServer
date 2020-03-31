@@ -9,8 +9,9 @@ exports.addUser = (nfc_uid, reg_date, token_id) => {
     .then(_ => {
         return DB.query(query.addUser, [nfc_uid, reg_date, token_id]);
     })
-    .then(_ => {
-        return DB.close(); 
+    .then(result => {
+        DB.close(); 
+        return result;
     })
     .catch(err => {
         console.log(err);
@@ -42,8 +43,9 @@ exports.updateRegDateInUser = (nfc_uid, reg_date) => {
     .then(_ => {
         return DB.query(query.updateRegDateInUser, [reg_date, nfc_uid]);
     })
-    .then(_ => {
-        return DB.close();
+    .then(result => {
+        DB.close(); 
+        return result;
     })
     .catch(err => {
         console.log(err);
@@ -51,11 +53,11 @@ exports.updateRegDateInUser = (nfc_uid, reg_date) => {
 }
 
 // 오늘 티켓 등록한 사람들의 데이터를 가져오기
-exports.getTodayAllUsersWait = (startTodayDate) => {
+exports.getTodayAllUsersWait = (_) => {
     const DB = new db.main();
     return DB.conn()
     .then(_ => {
-        return DB.query(query.getTodayAllUsersWait, [startTodayDate]);
+        return DB.query(query.getTodayAllUsersWait);
     })
     .then(result => {
         DB.close();
@@ -185,3 +187,18 @@ exports.getBoarding = (nfc_uid) => {
         console.log(err);
     });
 }
+
+exports.setWaitFlag = (reg_date) => {
+    const DB = new db.main();
+    return DB.conn()
+    .then(_ => {
+        return DB.query(query.setWaitFlag, [reg_date]);
+    })
+    .then(result => {
+        DB.close();
+        return result;
+    })
+    .catch(err => {
+        console.log(err);
+    });
+} 
